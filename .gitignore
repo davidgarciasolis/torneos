@@ -1,0 +1,7 @@
+database.sql
+script
+directus-torneos-schema.md
+node_modules/
+dist/
+.env
+.env.local
