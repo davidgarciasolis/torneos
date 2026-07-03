@@ -758,30 +758,94 @@ function Standings({ tournament, scope }) {
       })
       .sort((a, b) => b.total - a.total || a.nombre.localeCompare(b.nombre, "es"));
   }, [scope, tournament.tipo]);
+  const leader = rows[0] || null;
+  const maxTotal = Math.max(...rows.map((row) => row.total), 0);
+  const scoredRounds = scope.jornadas.length;
+  const averageScore = rows.length ? rows.reduce((sum, row) => sum + row.total, 0) / rows.length : 0;
 
   return (
-    <DataPanel title="Clasificacion" empty="Aun no hay participantes.">
-      <table>
-        <thead>
-          <tr>
-            <th>Posicion</th>
-            <th>{tournament.tipo === "equipos" ? "Equipo" : "Jugador"}</th>
-            <th>Puntos</th>
-            <th>Jornadas puntuadas</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, index) => (
-            <tr key={row.id}>
-              <td>{index + 1}</td>
-              <td>{row.nombre}</td>
-              <td>{row.total.toFixed(2)}</td>
-              <td>{row.rounds}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </DataPanel>
+    <section className="data-panel standings-panel">
+      <div className="panel-title standings-title">
+        <div>
+          <h3>Clasificacion</h3>
+          <p>{rows.length ? `${rows.length} participantes ordenados por puntos acumulados.` : "Aun no hay participantes."}</p>
+        </div>
+        {leader ? (
+          <div className="leader-chip">
+            <Trophy size={16} />
+            <span>{leader.nombre}</span>
+          </div>
+        ) : null}
+      </div>
+
+      {rows.length ? (
+        <>
+          <div className="standings-metrics">
+            <div>
+              <span>Lider</span>
+              <strong>{leader.nombre}</strong>
+            </div>
+            <div>
+              <span>Puntos lider</span>
+              <strong>{leader.total.toFixed(2)}</strong>
+            </div>
+            <div>
+              <span>Media</span>
+              <strong>{averageScore.toFixed(2)}</strong>
+            </div>
+            <div>
+              <span>Jornadas</span>
+              <strong>{scoredRounds}</strong>
+            </div>
+          </div>
+
+          <div className="table-wrap">
+            <table className="standings-table">
+              <thead>
+                <tr>
+                  <th>Posicion</th>
+                  <th>{tournament.tipo === "equipos" ? "Equipo" : "Jugador"}</th>
+                  <th>Puntos</th>
+                  <th>Progreso</th>
+                  <th>Jornadas</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row, index) => {
+                  const percentage = maxTotal > 0 ? Math.max(4, (row.total / maxTotal) * 100) : 0;
+                  return (
+                    <tr key={row.id} className={index < 3 ? `rank-row rank-${index + 1}` : ""}>
+                      <td>
+                        <span className="rank-badge">{index + 1}</span>
+                      </td>
+                      <td>
+                        <div className="participant-cell">
+                          <strong>{row.nombre}</strong>
+                          {index === 0 ? <span>Lider actual</span> : null}
+                        </div>
+                      </td>
+                      <td className="score-cell">{row.total.toFixed(2)}</td>
+                      <td>
+                        <div className="score-track" aria-label={`${row.total.toFixed(2)} puntos`}>
+                          <span style={{ width: `${percentage}%` }} />
+                        </div>
+                      </td>
+                      <td>
+                        <span className="rounds-pill">
+                          {row.rounds}/{scoredRounds || row.rounds}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
+      ) : (
+        <EmptyState text="Aun no hay participantes." />
+      )}
+    </section>
   );
 }
 
