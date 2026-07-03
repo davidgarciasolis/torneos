@@ -144,11 +144,11 @@ function TournamentApp({ session, setSession }) {
   const [activeTab, setActiveTab] = useState("resumen");
   const [modal, setModal] = useState(null);
 
-  const selectedTournament = api.torneos.find((torneo) => torneo.id === selectedTournamentId) || api.torneos[0] || null;
+  const selectedTournament = api.torneos.find((torneo) => sameId(torneo.id, selectedTournamentId)) || api.torneos[0] || null;
 
   useEffect(() => {
     if (!selectedTournamentId && selectedTournament) setSelectedTournamentId(selectedTournament.id);
-    if (selectedTournamentId && !api.torneos.some((torneo) => torneo.id === selectedTournamentId)) {
+    if (selectedTournamentId && !api.torneos.some((torneo) => sameId(torneo.id, selectedTournamentId))) {
       setSelectedTournamentId(api.torneos[0]?.id || null);
     }
   }, [api.torneos, selectedTournament, selectedTournamentId]);
@@ -196,7 +196,7 @@ function TournamentApp({ session, setSession }) {
           {filteredTournaments.map((torneo) => (
             <button
               key={torneo.id}
-              className={torneo.id === selectedTournament?.id ? "tournament-item active" : "tournament-item"}
+              className={sameId(torneo.id, selectedTournament?.id) ? "tournament-item active" : "tournament-item"}
               onClick={() => setSelectedTournamentId(torneo.id)}
             >
               <span>{torneo.nombre}</span>
@@ -244,7 +244,7 @@ function TournamentApp({ session, setSession }) {
         )}
       </section>
 
-      {modal ? <EntityModal modal={modal} close={() => setModal(null)} api={api} tournament={selectedTournament} /> : null}
+      {modal ? <EntityModal modal={modal} close={() => setModal(null)} api={api} tournament={modal.tournament || selectedTournament} /> : null}
     </main>
   );
 }
@@ -306,21 +306,22 @@ function useDirectusData(session, setSession) {
 
 function TournamentDetail({ tournament, activeTab, api, openModal }) {
   const scope = useMemo(() => getTournamentScope(tournament.id, api), [tournament.id, api]);
+  const openTournamentModal = (modal) => openModal({ ...modal, tournament });
 
   if (activeTab === "resumen") {
-    return <Summary tournament={tournament} scope={scope} openModal={openModal} />;
+    return <Summary tournament={tournament} scope={scope} openModal={openTournamentModal} />;
   }
   if (activeTab === "jugadores") {
-    return <PlayersTable tournament={tournament} scope={scope} openModal={openModal} api={api} />;
+    return <PlayersTable tournament={tournament} scope={scope} openModal={openTournamentModal} api={api} />;
   }
   if (activeTab === "equipos") {
-    return <TeamsTable tournament={tournament} scope={scope} openModal={openModal} api={api} />;
+    return <TeamsTable tournament={tournament} scope={scope} openModal={openTournamentModal} api={api} />;
   }
   if (activeTab === "jornadas") {
-    return <RoundsTable tournament={tournament} scope={scope} openModal={openModal} api={api} />;
+    return <RoundsTable tournament={tournament} scope={scope} openModal={openTournamentModal} api={api} />;
   }
   if (activeTab === "puntuaciones") {
-    return <ScoresTable tournament={tournament} scope={scope} openModal={openModal} api={api} />;
+    return <ScoresTable tournament={tournament} scope={scope} openModal={openTournamentModal} api={api} />;
   }
   return <Standings tournament={tournament} scope={scope} />;
 }
@@ -640,7 +641,13 @@ function EntityModal({ modal, close, api, tournament }) {
 
     setSaving(true);
     try {
-      await api.save(collectionFor(modal.type), payloadFor(modal.type, form, tournament), modal.item?.id);
+      const payload = payloadFor(modal.type, form, tournament);
+      const payloadValidation = validatePayload(modal.type, payload);
+      if (payloadValidation) {
+        setError(payloadValidation);
+        return;
+      }
+      await api.save(collectionFor(modal.type), payload, modal.item?.id);
       close();
     } catch (saveError) {
       setError(collectionError(saveError));
@@ -827,7 +834,7 @@ function collectionFor(type) {
 }
 
 function payloadFor(type, form, tournament) {
-  const tournamentId = Number(idValue(tournament?.id ?? form.id_torneo));
+  const tournamentId = numericId(tournament?.id ?? form.id_torneo);
   if (type === "torneo") {
     return { nombre: form.nombre.trim(), estado: form.estado, tipo: form.tipo };
   }
@@ -844,12 +851,25 @@ function payloadFor(type, form, tournament) {
   const isTeams = tournament.tipo === "equipos";
   return {
     id_torneo: tournamentId,
-    id_jornada: Number(idValue(form.id_jornada)),
-    id_equipo: isTeams ? Number(idValue(form.id_equipo)) : null,
-    id_jugador: isTeams ? null : Number(idValue(form.id_jugador)),
+    id_jornada: numericId(form.id_jornada),
+    id_equipo: isTeams ? numericId(form.id_equipo) : null,
+    id_jugador: isTeams ? null : numericId(form.id_jugador),
     puntuacion: Number(form.puntuacion || 0),
     notas: form.notas?.trim() || null
   };
+}
+
+function numericId(value) {
+  const id = Number(idValue(value));
+  return Number.isFinite(id) && id > 0 ? id : null;
+}
+
+function validatePayload(type, payload) {
+  if (type === "torneo") return "";
+  if (!payload.id_torneo) return "No se ha podido determinar el torneo. Vuelve a seleccionar el torneo e intentalo de nuevo.";
+  if (type === "puntuacion" && !payload.id_jornada) return "Selecciona una jornada del torneo.";
+  if (type === "puntuacion" && !payload.id_equipo && !payload.id_jugador) return "Selecciona un participante del torneo.";
+  return "";
 }
 
 function validateEntity(modal, form, tournament, scope) {
