@@ -223,6 +223,12 @@ function TournamentApp({ session, setSession }) {
           </div>
           <div className="header-actions">
             {api.error ? <span className="inline-error">{api.error}</span> : null}
+            {selectedTournament ? (
+              <button className="secondary-button danger" onClick={() => confirmDelete(api, "torneos", selectedTournament.id, selectedTournament.nombre)}>
+                <Trash2 size={16} />
+                Borrar torneo
+              </button>
+            ) : null}
             <button className="secondary-button" onClick={api.loadAll} disabled={api.loading}>
               <RefreshCw className={api.loading ? "spin" : ""} size={17} />
               Actualizar
@@ -673,6 +679,9 @@ function EntityModal({ modal, close, api, tournament }) {
     setSaving(true);
     try {
       const payload = payloadFor(modal.type, form, tournament);
+      if (modal.type === "torneo" && modal.mode === "edit") {
+        payload.tipo = modal.item?.tipo || tournament?.tipo || payload.tipo;
+      }
       const payloadValidation = validatePayload(modal.type, payload);
       if (payloadValidation) {
         setError(payloadValidation);
@@ -697,7 +706,7 @@ function EntityModal({ modal, close, api, tournament }) {
           </button>
         </div>
         <form onSubmit={submit} className="entity-form">
-          <EntityFields type={modal.type} form={form} update={update} tournament={tournament} scope={scope} />
+          <EntityFields type={modal.type} form={form} update={update} tournament={tournament} scope={scope} mode={modal.mode} />
           {error ? <div className="form-error">{error}</div> : null}
           <div className="modal-actions">
             <button type="button" className="secondary-button" onClick={close}>
@@ -714,7 +723,7 @@ function EntityModal({ modal, close, api, tournament }) {
   );
 }
 
-function EntityFields({ type, form, update, tournament, scope }) {
+function EntityFields({ type, form, update, tournament, scope, mode }) {
   if (type === "torneo") {
     return (
       <>
@@ -734,7 +743,7 @@ function EntityFields({ type, form, update, tournament, scope }) {
         </label>
         <label>
           Tipo
-          <select required value={form.tipo || "individual"} onChange={(event) => update("tipo", event.target.value)}>
+          <select required disabled={mode === "edit"} value={form.tipo || "individual"} onChange={(event) => update("tipo", event.target.value)}>
             {TOURNAMENT_TYPES.map((typeOption) => (
               <option key={typeOption} value={typeOption}>
                 {typeOption}
