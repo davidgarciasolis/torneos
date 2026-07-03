@@ -51,6 +51,15 @@ function sortByName(items) {
   return [...items].sort((a, b) => String(a.nombre || "").localeCompare(String(b.nombre || ""), "es"));
 }
 
+function idValue(value) {
+  if (value && typeof value === "object") return value.id;
+  return value;
+}
+
+function sameId(left, right) {
+  return Number(idValue(left)) === Number(idValue(right));
+}
+
 function collectionError(error) {
   return error?.message || "Ha ocurrido un error inesperado.";
 }
@@ -318,12 +327,12 @@ function TournamentDetail({ tournament, activeTab, api, openModal }) {
 
 function getTournamentScope(tournamentId, api) {
   return {
-    equipos: sortByName(api.equipos.filter((item) => item.id_torneo === tournamentId)),
-    jugadores: sortByName(api.jugadores.filter((item) => item.id_torneo === tournamentId)),
-    jornadas: [...api.jornadas.filter((item) => item.id_torneo === tournamentId)].sort((a, b) =>
+    equipos: sortByName(api.equipos.filter((item) => sameId(item.id_torneo, tournamentId))),
+    jugadores: sortByName(api.jugadores.filter((item) => sameId(item.id_torneo, tournamentId))),
+    jornadas: [...api.jornadas.filter((item) => sameId(item.id_torneo, tournamentId))].sort((a, b) =>
       String(a.fecha_jornada || "").localeCompare(String(b.fecha_jornada || ""))
     ),
-    puntuaciones: api.puntuaciones.filter((item) => item.id_torneo === tournamentId)
+    puntuaciones: api.puntuaciones.filter((item) => sameId(item.id_torneo, tournamentId))
   };
 }
 
@@ -415,7 +424,7 @@ function PlayersTable({ tournament, scope, openModal, api }) {
           {scope.jugadores.map((jugador) => (
             <tr key={jugador.id}>
               <td>{jugador.nombre}</td>
-              {tournament.tipo === "equipos" ? <td>{scope.equipos.find((equipo) => equipo.id === jugador.id_equipo)?.nombre || "Sin equipo"}</td> : null}
+              {tournament.tipo === "equipos" ? <td>{scope.equipos.find((equipo) => sameId(equipo.id, jugador.id_equipo))?.nombre || "Sin equipo"}</td> : null}
               <RowActions
                 onEdit={() => openModal({ type: "jugador", mode: "edit", item: jugador })}
                 onDelete={() => confirmDelete(api, "jugadores", jugador.id, jugador.nombre)}
@@ -443,7 +452,7 @@ function TeamsTable({ scope, openModal, api }) {
           {scope.equipos.map((equipo) => (
             <tr key={equipo.id}>
               <td>{equipo.nombre}</td>
-              <td>{scope.jugadores.filter((jugador) => jugador.id_equipo === equipo.id).length}</td>
+              <td>{scope.jugadores.filter((jugador) => sameId(jugador.id_equipo, equipo.id)).length}</td>
               <RowActions
                 onEdit={() => openModal({ type: "equipo", mode: "edit", item: equipo })}
                 onDelete={() => confirmDelete(api, "equipos", equipo.id, equipo.nombre)}
@@ -473,7 +482,7 @@ function RoundsTable({ scope, openModal, api }) {
             <tr key={jornada.id}>
               <td>{jornada.nombre || `Jornada ${jornada.id}`}</td>
               <td>{jornada.fecha_jornada}</td>
-              <td>{scope.puntuaciones.filter((puntuacion) => puntuacion.id_jornada === jornada.id).length}</td>
+              <td>{scope.puntuaciones.filter((puntuacion) => sameId(puntuacion.id_jornada, jornada.id)).length}</td>
               <RowActions
                 onEdit={() => openModal({ type: "jornada", mode: "edit", item: jornada })}
                 onDelete={() => confirmDelete(api, "jornadas", jornada.id, jornada.nombre || `Jornada ${jornada.id}`)}
@@ -508,11 +517,11 @@ function ScoresTable({ tournament, scope, openModal, api }) {
         </thead>
         <tbody>
           {scope.puntuaciones.map((puntuacion) => {
-            const jornada = scope.jornadas.find((item) => item.id === puntuacion.id_jornada);
+            const jornada = scope.jornadas.find((item) => sameId(item.id, puntuacion.id_jornada));
             const participante =
               tournament.tipo === "equipos"
-                ? scope.equipos.find((item) => item.id === puntuacion.id_equipo)
-                : scope.jugadores.find((item) => item.id === puntuacion.id_jugador);
+                ? scope.equipos.find((item) => sameId(item.id, puntuacion.id_equipo))
+                : scope.jugadores.find((item) => sameId(item.id, puntuacion.id_jugador));
             return (
               <tr key={puntuacion.id}>
                 <td>{jornada?.nombre || jornada?.fecha_jornada || "Sin jornada"}</td>
@@ -539,7 +548,7 @@ function Standings({ tournament, scope }) {
 
     return participants
       .map((participant) => {
-        const scores = scope.puntuaciones.filter((score) => score[idKey] === participant.id);
+        const scores = scope.puntuaciones.filter((score) => sameId(score[idKey], participant.id));
         const total = scores.reduce((sum, score) => sum + Number(score.puntuacion || 0), 0);
         return { ...participant, total, rounds: scores.length };
       })
@@ -788,11 +797,12 @@ function EntityFields({ type, form, update, tournament, scope }) {
 
 function initialForm(modal, tournament) {
   if (modal.item) return { ...modal.item };
+  const tournamentId = idValue(tournament?.id);
   if (modal.type === "torneo") return { nombre: "", estado: "borrador", tipo: "individual" };
-  if (modal.type === "jornada") return { nombre: "", fecha_jornada: today(), id_torneo: tournament?.id };
-  if (modal.type === "puntuacion") return { id_torneo: tournament?.id, id_jornada: "", puntuacion: 0, notas: "" };
-  if (modal.type === "jugador") return { nombre: "", id_torneo: tournament?.id, id_equipo: null };
-  if (modal.type === "equipo") return { nombre: "", id_torneo: tournament?.id };
+  if (modal.type === "jornada") return { nombre: "", fecha_jornada: today(), id_torneo: tournamentId };
+  if (modal.type === "puntuacion") return { id_torneo: tournamentId, id_jornada: "", puntuacion: 0, notas: "" };
+  if (modal.type === "jugador") return { nombre: "", id_torneo: tournamentId, id_equipo: null };
+  if (modal.type === "equipo") return { nombre: "", id_torneo: tournamentId };
   return EMPTY_FORM;
 }
 
@@ -817,25 +827,26 @@ function collectionFor(type) {
 }
 
 function payloadFor(type, form, tournament) {
+  const tournamentId = Number(idValue(tournament?.id ?? form.id_torneo));
   if (type === "torneo") {
     return { nombre: form.nombre.trim(), estado: form.estado, tipo: form.tipo };
   }
   if (type === "equipo") {
-    return { nombre: form.nombre.trim(), id_torneo: tournament.id };
+    return { nombre: form.nombre.trim(), id_torneo: tournamentId };
   }
   if (type === "jugador") {
-    return { nombre: form.nombre.trim(), id_torneo: tournament.id, id_equipo: tournament.tipo === "equipos" ? form.id_equipo || null : null };
+    return { nombre: form.nombre.trim(), id_torneo: tournamentId, id_equipo: tournament.tipo === "equipos" ? idValue(form.id_equipo) || null : null };
   }
   if (type === "jornada") {
-    return { nombre: form.nombre?.trim() || null, fecha_jornada: form.fecha_jornada, id_torneo: tournament.id };
+    return { nombre: form.nombre?.trim() || null, fecha_jornada: form.fecha_jornada, id_torneo: tournamentId };
   }
 
   const isTeams = tournament.tipo === "equipos";
   return {
-    id_torneo: tournament.id,
-    id_jornada: Number(form.id_jornada),
-    id_equipo: isTeams ? Number(form.id_equipo) : null,
-    id_jugador: isTeams ? null : Number(form.id_jugador),
+    id_torneo: tournamentId,
+    id_jornada: Number(idValue(form.id_jornada)),
+    id_equipo: isTeams ? Number(idValue(form.id_equipo)) : null,
+    id_jugador: isTeams ? null : Number(idValue(form.id_jugador)),
     puntuacion: Number(form.puntuacion || 0),
     notas: form.notas?.trim() || null
   };
@@ -848,6 +859,7 @@ function validateEntity(modal, form, tournament, scope) {
   }
 
   if (!tournament) return "Selecciona un torneo.";
+  if (!idValue(tournament.id ?? form.id_torneo)) return "Selecciona un torneo valido.";
 
   if (modal.type === "equipo") {
     if (!form.nombre?.trim()) return "El nombre es obligatorio.";
@@ -859,7 +871,7 @@ function validateEntity(modal, form, tournament, scope) {
     if (!form.nombre?.trim()) return "El nombre es obligatorio.";
     const duplicate = scope.jugadores.some((jugador) => jugador.id !== modal.item?.id && normalizeName(jugador.nombre) === normalizeName(form.nombre));
     if (duplicate) return "Ya existe un jugador con ese nombre en este torneo.";
-    if (form.id_equipo && !scope.equipos.some((equipo) => equipo.id === Number(form.id_equipo))) return "El equipo elegido no pertenece a este torneo.";
+    if (form.id_equipo && !scope.equipos.some((equipo) => sameId(equipo.id, form.id_equipo))) return "El equipo elegido no pertenece a este torneo.";
     return "";
   }
 
@@ -868,18 +880,18 @@ function validateEntity(modal, form, tournament, scope) {
     return "";
   }
 
-  if (!form.id_jornada || !scope.jornadas.some((jornada) => jornada.id === Number(form.id_jornada))) {
+  if (!form.id_jornada || !scope.jornadas.some((jornada) => sameId(jornada.id, form.id_jornada))) {
     return "La jornada elegida no pertenece a este torneo.";
   }
 
   const key = tournament.tipo === "equipos" ? "id_equipo" : "id_jugador";
   const list = tournament.tipo === "equipos" ? scope.equipos : scope.jugadores;
-  if (!form[key] || !list.some((item) => item.id === Number(form[key]))) {
+  if (!form[key] || !list.some((item) => sameId(item.id, form[key]))) {
     return tournament.tipo === "equipos" ? "Selecciona un equipo del torneo." : "Selecciona un jugador del torneo.";
   }
 
   const duplicate = scope.puntuaciones.some(
-    (puntuacion) => puntuacion.id !== modal.item?.id && puntuacion.id_jornada === Number(form.id_jornada) && puntuacion[key] === Number(form[key])
+    (puntuacion) => puntuacion.id !== modal.item?.id && sameId(puntuacion.id_jornada, form.id_jornada) && sameId(puntuacion[key], form[key])
   );
   return duplicate ? "Ya existe una puntuacion para ese participante en esa jornada." : "";
 }
