@@ -165,6 +165,15 @@ textarea:focus {
   background: var(--surface-muted);
 }
 
+.secondary-button.danger {
+  color: var(--red);
+  border-color: rgba(163, 61, 57, 0.35);
+}
+
+.secondary-button.danger:hover {
+  background: #fff2f1;
+}
+
 .primary-button.full {
   width: 100%;
   margin: 16px 0;
@@ -357,8 +366,19 @@ textarea:focus {
   margin-bottom: 14px;
 }
 
+.panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .panel-title h3 {
   margin: 0;
+}
+
+.state-control {
+  max-width: 260px;
+  margin-bottom: 14px;
 }
 
 .facts {

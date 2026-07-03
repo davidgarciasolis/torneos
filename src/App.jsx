@@ -315,7 +315,7 @@ function TournamentDetail({ tournament, activeTab, api, openModal }) {
   const openTournamentModal = (modal) => openModal({ ...modal, tournament });
 
   if (activeTab === "resumen") {
-    return <Summary tournament={tournament} scope={scope} openModal={openTournamentModal} />;
+    return <Summary tournament={tournament} scope={scope} openModal={openTournamentModal} api={api} />;
   }
   if (activeTab === "jugadores") {
     return <PlayersTable tournament={tournament} scope={scope} openModal={openTournamentModal} api={api} />;
@@ -343,22 +343,47 @@ function getTournamentScope(tournamentId, api) {
   };
 }
 
-function Summary({ tournament, scope, openModal }) {
+function Summary({ tournament, scope, openModal, api }) {
+  const [savingState, setSavingState] = useState(false);
+
+  const updateTournamentState = async (estado) => {
+    setSavingState(true);
+    try {
+      await api.save("torneos", { nombre: tournament.nombre, estado, tipo: tournament.tipo }, tournament.id);
+    } catch (error) {
+      alert(collectionError(error));
+    } finally {
+      setSavingState(false);
+    }
+  };
+
   return (
     <section className="content-grid">
       <div className="summary-panel">
         <div className="panel-title">
           <h3>Datos del torneo</h3>
-          <button className="secondary-button" onClick={() => openModal({ type: "torneo", mode: "edit", item: tournament })}>
-            <Edit3 size={16} />
-            Editar
-          </button>
-        </div>
-        <dl className="facts">
-          <div>
-            <dt>Estado</dt>
-            <dd>{tournament.estado}</dd>
+          <div className="panel-actions">
+            <button className="secondary-button" onClick={() => openModal({ type: "torneo", mode: "edit", item: tournament })}>
+              <Edit3 size={16} />
+              Editar
+            </button>
+            <button className="secondary-button danger" onClick={() => confirmDelete(api, "torneos", tournament.id, tournament.nombre)}>
+              <Trash2 size={16} />
+              Borrar
+            </button>
           </div>
+        </div>
+        <label className="state-control">
+          Estado
+          <select value={tournament.estado} disabled={savingState} onChange={(event) => updateTournamentState(event.target.value)}>
+            {TOURNAMENT_STATES.map((state) => (
+              <option key={state} value={state}>
+                {state}
+              </option>
+            ))}
+          </select>
+        </label>
+        <dl className="facts">
           <div>
             <dt>Tipo</dt>
             <dd>{tournament.tipo}</dd>
