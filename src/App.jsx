@@ -223,12 +223,6 @@ function TournamentApp({ session, setSession }) {
           </div>
           <div className="header-actions">
             {api.error ? <span className="inline-error">{api.error}</span> : null}
-            {selectedTournament ? (
-              <button className="secondary-button danger" onClick={() => confirmDelete(api, "torneos", selectedTournament.id, selectedTournament.nombre)}>
-                <Trash2 size={16} />
-                Borrar torneo
-              </button>
-            ) : null}
             <button className="secondary-button" onClick={api.loadAll} disabled={api.loading}>
               <RefreshCw className={api.loading ? "spin" : ""} size={17} />
               Actualizar
@@ -350,19 +344,6 @@ function getTournamentScope(tournamentId, api) {
 }
 
 function Summary({ tournament, scope, openModal, api }) {
-  const [savingState, setSavingState] = useState(false);
-
-  const updateTournamentState = async (estado) => {
-    setSavingState(true);
-    try {
-      await api.save("torneos", { nombre: tournament.nombre, estado, tipo: tournament.tipo }, tournament.id);
-    } catch (error) {
-      alert(collectionError(error));
-    } finally {
-      setSavingState(false);
-    }
-  };
-
   return (
     <section className="content-grid">
       <div className="summary-panel">
@@ -379,17 +360,11 @@ function Summary({ tournament, scope, openModal, api }) {
             </button>
           </div>
         </div>
-        <label className="state-control">
-          Estado
-          <select value={tournament.estado} disabled={savingState} onChange={(event) => updateTournamentState(event.target.value)}>
-            {TOURNAMENT_STATES.map((state) => (
-              <option key={state} value={state}>
-                {state}
-              </option>
-            ))}
-          </select>
-        </label>
         <dl className="facts">
+          <div>
+            <dt>Estado</dt>
+            <dd>{tournament.estado}</dd>
+          </div>
           <div>
             <dt>Tipo</dt>
             <dd>{tournament.tipo}</dd>

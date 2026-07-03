@@ -376,11 +376,6 @@ textarea:focus {
   margin: 0;
 }
 
-.state-control {
-  max-width: 260px;
-  margin-bottom: 14px;
-}
-
 .facts {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
