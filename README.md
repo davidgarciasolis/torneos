@@ -27,7 +27,11 @@ VITE_DIRECTUS_URL=https://tu-directus.example.com
 npm run build
 ```
 
-El resultado queda en `dist/`. La configuracion de Vite usa `base: "./"` para que los assets funcionen al publicar en GitHub Pages.
+El resultado queda en `dist/`. La configuracion de Vite usa `base: "/torneos/"`, que corresponde a la URL de GitHub Pages del repositorio:
+
+```text
+https://davidgarciasolis.github.io/torneos/
+```
 
 No abras `index.html` directamente desde el explorador de archivos: ese es el punto de entrada de desarrollo y necesita Vite. Para probar en local usa `npm run dev`, o `npm run build` seguido de `npm run preview`.
 
@@ -47,6 +51,8 @@ En GitHub, configura el repositorio asi:
 1. Ve a `Settings` > `Pages`.
 2. En `Build and deployment`, elige `Source: GitHub Actions`.
 3. Haz push a `main` o `master`.
+
+No uses `Deploy from a branch` con la raiz del repositorio: GitHub Pages serviria el `index.html` de desarrollo, que depende de Vite y no funciona como pagina estatica.
 
 ## Directus
 
