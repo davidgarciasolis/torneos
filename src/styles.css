@@ -539,8 +539,8 @@ textarea:focus {
 
 .standings-table th:nth-child(3),
 .standings-table td:nth-child(3),
-.standings-table th:nth-child(5),
-.standings-table td:nth-child(5) {
+.standings-table th:nth-child(4),
+.standings-table td:nth-child(4) {
   width: 120px;
 }
 
@@ -605,21 +605,6 @@ textarea:focus {
 .score-cell {
   font-weight: 900;
   color: var(--green-dark);
-}
-
-.score-track {
-  width: 100%;
-  height: 10px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: #e8ece4;
-}
-
-.score-track span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, var(--green), var(--gold));
 }
 
 .rounds-pill {
@@ -916,7 +901,7 @@ th {
   }
 
   .standings-table td:nth-child(1) {
-    grid-row: span 4;
+    grid-row: span 3;
     width: auto;
   }
 
@@ -925,8 +910,7 @@ th {
     display: none;
   }
 
-  .standings-table td:nth-child(2),
-  .standings-table td:nth-child(4) {
+  .standings-table td:nth-child(2) {
     min-width: 0;
   }
 
@@ -935,7 +919,4 @@ th {
     height: 42px;
   }
 
-  .score-track {
-    height: 12px;
-  }
 }

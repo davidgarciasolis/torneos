@@ -759,7 +759,6 @@ function Standings({ tournament, scope }) {
       .sort((a, b) => b.total - a.total || a.nombre.localeCompare(b.nombre, "es"));
   }, [scope, tournament.tipo]);
   const leader = rows[0] || null;
-  const maxTotal = Math.max(...rows.map((row) => row.total), 0);
   const scoredRounds = scope.jornadas.length;
   const averageScore = rows.length ? rows.reduce((sum, row) => sum + row.total, 0) / rows.length : 0;
 
@@ -806,13 +805,11 @@ function Standings({ tournament, scope }) {
                   <th>Posicion</th>
                   <th>{tournament.tipo === "equipos" ? "Equipo" : "Jugador"}</th>
                   <th>Puntos</th>
-                  <th>Progreso</th>
                   <th>Jornadas</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((row, index) => {
-                  const percentage = maxTotal > 0 ? Math.max(4, (row.total / maxTotal) * 100) : 0;
                   return (
                     <tr key={row.id} className={index < 3 ? `rank-row rank-${index + 1}` : ""}>
                       <td data-label="Posicion">
@@ -826,11 +823,6 @@ function Standings({ tournament, scope }) {
                       </td>
                       <td className="score-cell" data-label="Puntos">
                         {row.total.toFixed(2)}
-                      </td>
-                      <td data-label="Progreso">
-                        <div className="score-track" aria-label={`${row.total.toFixed(2)} puntos`}>
-                          <span style={{ width: `${percentage}%` }} />
-                        </div>
                       </td>
                       <td data-label="Jornadas">
                         <span className="rounds-pill">
