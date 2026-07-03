@@ -135,7 +135,7 @@ export function listItems(collection, query, session, onSessionChange) {
   const params = new URLSearchParams();
   Object.entries(query || {}).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== "") {
-      params.set(key, typeof value === "object" ? JSON.stringify(value) : String(value));
+      params.set(key, Array.isArray(value) ? value.join(",") : typeof value === "object" ? JSON.stringify(value) : String(value));
     }
   });
   const suffix = params.toString() ? `?${params.toString()}` : "";

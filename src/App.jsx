@@ -261,7 +261,7 @@ function useDirectusData(session, setSession) {
     setError("");
     try {
       const [torneos, equipos, jugadores, jornadas, puntuaciones] = await Promise.all([
-        listItems("torneos", { limit: -1, sort: ["-date_created"] }, session, onSessionChange),
+        listItems("torneos", { limit: -1, sort: ["nombre"] }, session, onSessionChange),
         listItems("equipos", { limit: -1, sort: ["nombre"] }, session, onSessionChange),
         listItems("jugadores", { limit: -1, sort: ["nombre"] }, session, onSessionChange),
         listItems("jornadas", { limit: -1, sort: ["fecha_jornada", "id"] }, session, onSessionChange),
