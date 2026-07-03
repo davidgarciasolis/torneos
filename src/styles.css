@@ -783,17 +783,43 @@ th {
 
 @media (max-width: 620px) {
   .public-header {
-    align-items: stretch;
-    flex-direction: column;
-    padding: 14px 16px;
+    min-height: 62px;
+    padding: 10px 16px;
   }
 
   .public-header .secondary-button {
-    width: 100%;
+    min-height: 36px;
+    width: auto;
+    padding: 0 11px;
   }
 
   .public-layout {
+    gap: 16px;
     padding: 16px;
+  }
+
+  .public-shell.tournament-view .public-content {
+    order: 1;
+  }
+
+  .public-shell.tournament-view .public-sidebar {
+    order: 2;
+  }
+
+  .public-shell.tournament-view .public-title h1 {
+    font-size: 1.25rem;
+  }
+
+  .public-shell.tournament-view .public-list {
+    display: flex;
+    gap: 8px;
+    margin-inline: -16px;
+    overflow-x: auto;
+    padding: 0 16px 4px;
+  }
+
+  .public-shell.tournament-view .tournament-item {
+    min-width: 210px;
   }
 
   .workspace,
@@ -833,5 +859,83 @@ th {
 
   .leader-chip {
     max-width: 100%;
+  }
+
+  .standings-table {
+    min-width: 0;
+  }
+
+  .standings-table thead {
+    display: none;
+  }
+
+  .standings-table,
+  .standings-table tbody,
+  .standings-table tr,
+  .standings-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .standings-table tbody {
+    display: grid;
+    gap: 10px;
+  }
+
+  .standings-table tbody tr,
+  .standings-table .rank-row {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #ffffff;
+    padding: 12px;
+  }
+
+  .standings-table tbody tr {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 10px 12px;
+  }
+
+  .standings-table tbody tr:hover {
+    background: #ffffff;
+  }
+
+  .standings-table td {
+    border-bottom: 0;
+    padding: 0;
+  }
+
+  .standings-table td::before {
+    content: attr(data-label);
+    display: block;
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .standings-table td:nth-child(1) {
+    grid-row: span 4;
+    width: auto;
+  }
+
+  .standings-table td:nth-child(1)::before,
+  .standings-table td:nth-child(2)::before {
+    display: none;
+  }
+
+  .standings-table td:nth-child(2),
+  .standings-table td:nth-child(4) {
+    min-width: 0;
+  }
+
+  .rank-badge {
+    width: 42px;
+    height: 42px;
+  }
+
+  .score-track {
+    height: 12px;
   }
 }

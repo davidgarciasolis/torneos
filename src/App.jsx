@@ -231,7 +231,7 @@ function PublicTournaments({ route, session }) {
   });
 
   return (
-    <main className="public-shell">
+    <main className={`public-shell ${route.name === "publicTournament" ? "tournament-view" : "home-view"}`}>
       <header className="public-header">
         <a className="public-brand" href={PUBLIC_ROUTE}>
           <span className="brand-mark compact">
@@ -815,22 +815,24 @@ function Standings({ tournament, scope }) {
                   const percentage = maxTotal > 0 ? Math.max(4, (row.total / maxTotal) * 100) : 0;
                   return (
                     <tr key={row.id} className={index < 3 ? `rank-row rank-${index + 1}` : ""}>
-                      <td>
+                      <td data-label="Posicion">
                         <span className="rank-badge">{index + 1}</span>
                       </td>
-                      <td>
+                      <td data-label={tournament.tipo === "equipos" ? "Equipo" : "Jugador"}>
                         <div className="participant-cell">
                           <strong>{row.nombre}</strong>
                           {index === 0 ? <span>Lider actual</span> : null}
                         </div>
                       </td>
-                      <td className="score-cell">{row.total.toFixed(2)}</td>
-                      <td>
+                      <td className="score-cell" data-label="Puntos">
+                        {row.total.toFixed(2)}
+                      </td>
+                      <td data-label="Progreso">
                         <div className="score-track" aria-label={`${row.total.toFixed(2)} puntos`}>
                           <span style={{ width: `${percentage}%` }} />
                         </div>
                       </td>
-                      <td>
+                      <td data-label="Jornadas">
                         <span className="rounds-pill">
                           {row.rounds}/{scoredRounds || row.rounds}
                         </span>
