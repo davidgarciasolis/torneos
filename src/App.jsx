@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   CalendarDays,
   Edit3,
+  LogIn,
   LogOut,
   Plus,
   RefreshCw,
@@ -29,6 +30,16 @@ import {
 const EMPTY_FORM = {};
 const TOURNAMENT_STATES = ["borrador", "activo", "finalizado", "cancelado"];
 const TOURNAMENT_TYPES = ["individual", "equipos"];
+const PUBLIC_ROUTE = "#/";
+const LOGIN_ROUTE = "#/login";
+const ADMIN_ROUTE = "#/admin";
+const PUBLIC_FIELDS = {
+  torneos: ["id", "nombre", "estado", "tipo"],
+  equipos: ["id", "nombre", "id_torneo"],
+  jugadores: ["id", "nombre", "id_torneo", "id_equipo"],
+  jornadas: ["id", "nombre", "fecha_jornada", "fecha_fin", "id_torneo"],
+  puntuaciones: ["id", "puntuacion", "notas", "id_torneo", "id_jornada", "id_equipo", "id_jugador"]
+};
 
 const TABS = [
   { id: "resumen", label: "Resumen", icon: Trophy },
@@ -70,12 +81,48 @@ function collectionError(error) {
   return error?.message || "Ha ocurrido un error inesperado.";
 }
 
+function parseRoute() {
+  const hash = window.location.hash || PUBLIC_ROUTE;
+  const path = hash.replace(/^#/, "") || "/";
+  const tournamentMatch = path.match(/^\/torneos\/([^/]+)$/);
+  if (tournamentMatch) return { name: "publicTournament", tournamentId: Number(tournamentMatch[1]) || null };
+  if (path === "/login") return { name: "login" };
+  if (path === "/admin") return { name: "admin" };
+  return { name: "publicHome" };
+}
+
+function tournamentRoute(id) {
+  return `#/torneos/${id}`;
+}
+
+function setRoute(hash) {
+  if (window.location.hash === hash) return;
+  window.location.hash = hash;
+}
+
+function useHashRoute() {
+  const [route, setCurrentRoute] = useState(parseRoute);
+
+  useEffect(() => {
+    const onHashChange = () => setCurrentRoute(parseRoute());
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
+
+  return route;
+}
+
 export default function App() {
   const [session, setSession] = useState(loadSession());
   const [loginError, setLoginError] = useState("");
   const [busyLogin, setBusyLogin] = useState(false);
+  const route = useHashRoute();
 
-  if (!session) {
+  if (route.name === "login" && session) {
+    return <TournamentApp session={session} setSession={setSession} />;
+  }
+
+  if (route.name === "login" && !session) {
     return (
       <LoginScreen
         busy={busyLogin}
@@ -85,6 +132,7 @@ export default function App() {
           setLoginError("");
           try {
             setSession(await login(email, password));
+            setRoute(ADMIN_ROUTE);
           } catch (error) {
             setLoginError(collectionError(error));
           } finally {
@@ -95,7 +143,31 @@ export default function App() {
     );
   }
 
-  return <TournamentApp session={session} setSession={setSession} />;
+  if (route.name === "admin") {
+    if (!session) {
+      return (
+        <LoginScreen
+          busy={busyLogin}
+          error={loginError}
+          onSubmit={async (email, password) => {
+            setBusyLogin(true);
+            setLoginError("");
+            try {
+              setSession(await login(email, password));
+              setRoute(ADMIN_ROUTE);
+            } catch (error) {
+              setLoginError(collectionError(error));
+            } finally {
+              setBusyLogin(false);
+            }
+          }}
+        />
+      );
+    }
+    return <TournamentApp session={session} setSession={setSession} />;
+  }
+
+  return <PublicTournaments route={route} session={session} />;
 }
 
 function LoginScreen({ busy, error, onSubmit }) {
@@ -137,6 +209,125 @@ function LoginScreen({ busy, error, onSubmit }) {
           </button>
         </form>
         <span className="api-note">API: {getDirectusUrl()}</span>
+      </section>
+    </main>
+  );
+}
+
+function PublicTournaments({ route, session }) {
+  const api = useDirectusData(null, null);
+  const [query, setQuery] = useState("");
+  const [stateFilter, setStateFilter] = useState("");
+  const selectedTournament =
+    api.torneos.find((torneo) => sameId(torneo.id, route.tournamentId)) || (route.name === "publicTournament" ? null : api.torneos[0] || null);
+  const scope = useMemo(
+    () => (selectedTournament ? getTournamentScope(selectedTournament.id, api) : { equipos: [], jugadores: [], jornadas: [], puntuaciones: [] }),
+    [selectedTournament, api]
+  );
+  const filteredTournaments = api.torneos.filter((torneo) => {
+    const matchesQuery = normalizeName(torneo.nombre).includes(normalizeName(query));
+    const matchesState = !stateFilter || torneo.estado === stateFilter;
+    return matchesQuery && matchesState;
+  });
+
+  return (
+    <main className="public-shell">
+      <header className="public-header">
+        <a className="public-brand" href={PUBLIC_ROUTE}>
+          <span className="brand-mark compact">
+            <Swords size={21} />
+          </span>
+          <span>
+            <small>Magic: The Gathering</small>
+            <strong>Torneos MTG</strong>
+          </span>
+        </a>
+        <a className="secondary-button" href={session ? ADMIN_ROUTE : LOGIN_ROUTE}>
+          <LogIn size={17} />
+          Usuario
+        </a>
+      </header>
+
+      <section className="public-layout">
+        <aside className="public-sidebar">
+          <div className="public-title">
+            <span className="eyebrow">Torneos</span>
+            <h1>Clasificaciones</h1>
+          </div>
+          <div className="toolbar">
+            <label className="search-field">
+              <Search size={16} />
+              <input placeholder="Buscar torneo" value={query} onChange={(event) => setQuery(event.target.value)} />
+            </label>
+            <select value={stateFilter} onChange={(event) => setStateFilter(event.target.value)}>
+              <option value="">Todos</option>
+              {TOURNAMENT_STATES.map((state) => (
+                <option key={state} value={state}>
+                  {state}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="tournament-list public-list">
+            {filteredTournaments.map((torneo) => (
+              <a
+                key={torneo.id}
+                className={sameId(torneo.id, selectedTournament?.id) ? "tournament-item active" : "tournament-item"}
+                href={tournamentRoute(torneo.id)}
+              >
+                <span>{torneo.nombre}</span>
+                <small>
+                  {torneo.estado} · {torneo.tipo}
+                </small>
+              </a>
+            ))}
+            {api.loading ? <EmptyState text="Cargando torneos." /> : null}
+            {!api.loading && filteredTournaments.length === 0 ? <EmptyState text="No hay torneos con esos filtros." /> : null}
+          </div>
+        </aside>
+
+        <section className="public-content">
+          <header className="workspace-header">
+            <div>
+              <span className="eyebrow">Clasificacion</span>
+              <h2>{selectedTournament?.nombre || "Selecciona un torneo"}</h2>
+            </div>
+            <div className="header-actions">
+              {api.error ? <span className="inline-error">{api.error}</span> : null}
+              <button className="secondary-button" onClick={api.loadAll} disabled={api.loading}>
+                <RefreshCw className={api.loading ? "spin" : ""} size={17} />
+                Actualizar
+              </button>
+            </div>
+          </header>
+
+          {selectedTournament ? (
+            <>
+              <dl className="facts public-facts">
+                <div>
+                  <dt>Estado</dt>
+                  <dd>{selectedTournament.estado}</dd>
+                </div>
+                <div>
+                  <dt>Tipo</dt>
+                  <dd>{selectedTournament.tipo}</dd>
+                </div>
+                <div>
+                  <dt>Participantes</dt>
+                  <dd>{selectedTournament.tipo === "equipos" ? scope.equipos.length : scope.jugadores.length}</dd>
+                </div>
+                <div>
+                  <dt>Jornadas</dt>
+                  <dd>{scope.jornadas.length}</dd>
+                </div>
+              </dl>
+              <Standings tournament={selectedTournament} scope={scope} />
+            </>
+          ) : (
+            <EmptyState text={route.name === "publicTournament" ? "No se ha encontrado ese torneo." : "Selecciona un torneo para ver su clasificacion."} />
+          )}
+        </section>
       </section>
     </main>
   );
@@ -268,7 +459,7 @@ function useDirectusData(session, setSession) {
 
   const onSessionChange = (nextSession) => {
     if (!nextSession) clearSession();
-    setSession(nextSession);
+    setSession?.(nextSession);
   };
 
   const loadAll = async () => {
@@ -276,11 +467,11 @@ function useDirectusData(session, setSession) {
     setError("");
     try {
       const [torneos, equipos, jugadores, jornadas, puntuaciones] = await Promise.all([
-        listItems("torneos", { limit: -1, sort: ["nombre"] }, session, onSessionChange),
-        listItems("equipos", { limit: -1, sort: ["nombre"] }, session, onSessionChange),
-        listItems("jugadores", { limit: -1, sort: ["nombre"] }, session, onSessionChange),
-        listItems("jornadas", { limit: -1, sort: ["fecha_jornada", "fecha_fin", "id"] }, session, onSessionChange),
-        listItems("puntuaciones", { limit: -1, sort: ["id_jornada", "id"] }, session, onSessionChange)
+        listItems("torneos", { limit: -1, fields: PUBLIC_FIELDS.torneos, sort: ["nombre"] }, session, onSessionChange),
+        listItems("equipos", { limit: -1, fields: PUBLIC_FIELDS.equipos, sort: ["nombre"] }, session, onSessionChange),
+        listItems("jugadores", { limit: -1, fields: PUBLIC_FIELDS.jugadores, sort: ["nombre"] }, session, onSessionChange),
+        listItems("jornadas", { limit: -1, fields: PUBLIC_FIELDS.jornadas, sort: ["fecha_jornada", "fecha_fin", "id"] }, session, onSessionChange),
+        listItems("puntuaciones", { limit: -1, fields: PUBLIC_FIELDS.puntuaciones, sort: ["id_jornada", "id"] }, session, onSessionChange)
       ]);
       setItems({ torneos, equipos, jugadores, jornadas, puntuaciones });
     } catch (loadError) {
