@@ -51,6 +51,12 @@ function sortByName(items) {
   return [...items].sort((a, b) => String(a.nombre || "").localeCompare(String(b.nombre || ""), "es"));
 }
 
+function roundLabel(jornada) {
+  if (!jornada) return "Sin jornada";
+  if (jornada.fecha_fin && jornada.fecha_fin !== jornada.fecha_jornada) return `${jornada.fecha_jornada} - ${jornada.fecha_fin}`;
+  return jornada.fecha_jornada || jornada.nombre || `Jornada ${jornada.id}`;
+}
+
 function idValue(value) {
   if (value && typeof value === "object") return value.id;
   return value;
@@ -273,7 +279,7 @@ function useDirectusData(session, setSession) {
         listItems("torneos", { limit: -1, sort: ["nombre"] }, session, onSessionChange),
         listItems("equipos", { limit: -1, sort: ["nombre"] }, session, onSessionChange),
         listItems("jugadores", { limit: -1, sort: ["nombre"] }, session, onSessionChange),
-        listItems("jornadas", { limit: -1, sort: ["fecha_jornada", "id"] }, session, onSessionChange),
+        listItems("jornadas", { limit: -1, sort: ["fecha_jornada", "fecha_fin", "id"] }, session, onSessionChange),
         listItems("puntuaciones", { limit: -1, sort: ["id_jornada", "id"] }, session, onSessionChange)
       ]);
       setItems({ torneos, equipos, jugadores, jornadas, puntuaciones });
@@ -472,8 +478,8 @@ function RoundsTable({ scope, openModal, api }) {
       <table>
         <thead>
           <tr>
-            <th>Nombre</th>
-            <th>Fecha</th>
+            <th>Fecha inicio</th>
+            <th>Fecha fin</th>
             <th>Puntuaciones</th>
             <th className="actions-cell">Acciones</th>
           </tr>
@@ -481,12 +487,12 @@ function RoundsTable({ scope, openModal, api }) {
         <tbody>
           {scope.jornadas.map((jornada) => (
             <tr key={jornada.id}>
-              <td>{jornada.nombre || `Jornada ${jornada.id}`}</td>
               <td>{jornada.fecha_jornada}</td>
+              <td>{jornada.fecha_fin || jornada.fecha_jornada}</td>
               <td>{scope.puntuaciones.filter((puntuacion) => sameId(puntuacion.id_jornada, jornada.id)).length}</td>
               <RowActions
                 onEdit={() => openModal({ type: "jornada", mode: "edit", item: jornada })}
-                onDelete={() => confirmDelete(api, "jornadas", jornada.id, jornada.nombre || `Jornada ${jornada.id}`)}
+                onDelete={() => confirmDelete(api, "jornadas", jornada.id, roundLabel(jornada))}
               />
             </tr>
           ))}
@@ -525,7 +531,7 @@ function ScoresTable({ tournament, scope, openModal, api }) {
                 : scope.jugadores.find((item) => sameId(item.id, puntuacion.id_jugador));
             return (
               <tr key={puntuacion.id}>
-                <td>{jornada?.nombre || jornada?.fecha_jornada || "Sin jornada"}</td>
+                <td>{roundLabel(jornada)}</td>
                 <td>{participante?.nombre || "Sin participante"}</td>
                 <td>{Number(puntuacion.puntuacion || 0).toFixed(2)}</td>
                 <td>{puntuacion.notas || ""}</td>
@@ -752,12 +758,12 @@ function EntityFields({ type, form, update, tournament, scope }) {
     return (
       <>
         <label>
-          Nombre
-          <input maxLength={100} value={form.nombre || ""} onChange={(event) => update("nombre", event.target.value)} placeholder="Ronda 1" />
+          Fecha inicio
+          <input required type="date" value={form.fecha_jornada || today()} onChange={(event) => update("fecha_jornada", event.target.value)} />
         </label>
         <label>
-          Fecha
-          <input required type="date" value={form.fecha_jornada || today()} onChange={(event) => update("fecha_jornada", event.target.value)} />
+          Fecha fin
+          <input required type="date" value={form.fecha_fin || form.fecha_jornada || today()} onChange={(event) => update("fecha_fin", event.target.value)} />
         </label>
       </>
     );
@@ -774,7 +780,7 @@ function EntityFields({ type, form, update, tournament, scope }) {
           <option value="">Selecciona una jornada</option>
           {scope.jornadas.map((jornada) => (
             <option key={jornada.id} value={jornada.id}>
-              {jornada.nombre || jornada.fecha_jornada}
+              {roundLabel(jornada)}
             </option>
           ))}
         </select>
@@ -803,10 +809,11 @@ function EntityFields({ type, form, update, tournament, scope }) {
 }
 
 function initialForm(modal, tournament) {
+  if (modal.item && modal.type === "jornada") return { ...modal.item, fecha_fin: modal.item.fecha_fin || modal.item.fecha_jornada };
   if (modal.item) return { ...modal.item };
   const tournamentId = idValue(tournament?.id);
   if (modal.type === "torneo") return { nombre: "", estado: "borrador", tipo: "individual" };
-  if (modal.type === "jornada") return { nombre: "", fecha_jornada: today(), id_torneo: tournamentId };
+  if (modal.type === "jornada") return { nombre: "", fecha_jornada: today(), fecha_fin: today(), id_torneo: tournamentId };
   if (modal.type === "puntuacion") return { id_torneo: tournamentId, id_jornada: "", puntuacion: 0, notas: "" };
   if (modal.type === "jugador") return { nombre: "", id_torneo: tournamentId, id_equipo: null };
   if (modal.type === "equipo") return { nombre: "", id_torneo: tournamentId };
@@ -845,7 +852,7 @@ function payloadFor(type, form, tournament) {
     return { nombre: form.nombre.trim(), id_torneo: tournamentId, id_equipo: tournament.tipo === "equipos" ? idValue(form.id_equipo) || null : null };
   }
   if (type === "jornada") {
-    return { nombre: form.nombre?.trim() || null, fecha_jornada: form.fecha_jornada, id_torneo: tournamentId };
+    return { nombre: form.nombre?.trim() || null, fecha_jornada: form.fecha_jornada, fecha_fin: form.fecha_fin, id_torneo: tournamentId };
   }
 
   const isTeams = tournament.tipo === "equipos";
@@ -867,6 +874,8 @@ function numericId(value) {
 function validatePayload(type, payload) {
   if (type === "torneo") return "";
   if (!payload.id_torneo) return "No se ha podido determinar el torneo. Vuelve a seleccionar el torneo e intentalo de nuevo.";
+  if (type === "jornada" && !payload.fecha_jornada) return "La fecha inicio es obligatoria.";
+  if (type === "jornada" && !payload.fecha_fin) return "La fecha fin es obligatoria.";
   if (type === "puntuacion" && !payload.id_jornada) return "Selecciona una jornada del torneo.";
   if (type === "puntuacion" && !payload.id_equipo && !payload.id_jugador) return "Selecciona un participante del torneo.";
   return "";
@@ -896,7 +905,9 @@ function validateEntity(modal, form, tournament, scope) {
   }
 
   if (modal.type === "jornada") {
-    if (!form.fecha_jornada) return "La fecha es obligatoria.";
+    if (!form.fecha_jornada) return "La fecha inicio es obligatoria.";
+    if (!form.fecha_fin) return "La fecha fin es obligatoria.";
+    if (form.fecha_fin < form.fecha_jornada) return "La fecha fin no puede ser anterior a la fecha inicio.";
     return "";
   }
 
